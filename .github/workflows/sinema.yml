@@ -1,0 +1,133 @@
+name: erotik Yayın
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  yayin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+    - name: 📥 Depoyu klonla
+      uses: actions/checkout@v4
+
+    - name: 🐍 Python kurulumu
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: 📦 FFmpeg kurulumu
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
+    - name: 🎬 Yayın scriptini oluştur
+      run: |
+        cat > yayin.py << 'EOF'
+        import subprocess
+        import time
+
+        # ===================== SSH101.com AYARLARI =====================
+        RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
+        STREAM_KEY = "mutlu1"
+        rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
+
+        # ===================== YAYIN AYARLARI =====================
+        PLAYLIST_FILE = "https://raw.githubusercontent.com/Sonuiptvnew/Sonuiptvnew/5d4cca3c9e8258373feeaf556b1a9e58bc4cf32e/xxx%20(1).m3u"
+        LOGO_URL = "https://raw.githubusercontent.com/mutlumedya/yayin/refs/heads/main/erotik.png"
+
+        print("=" * 50)
+        print("📺 SSH101.com Yayın Başlatılıyor")
+        print("=" * 50)
+        print(f"🎨 Logo: {LOGO_URL}")
+        print(f"🔑 Stream Key: {STREAM_KEY}")
+        print(f"📡 RTMP: {rtmp_server}")
+        print("=" * 50)
+
+        # Logo'yu indir
+        subprocess.run([
+            "wget",
+            "-O",
+            "logo.png",
+            LOGO_URL
+        ])
+
+        # Playlist'i oku
+        playlist = []
+        with open(PLAYLIST_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("http"):
+                    playlist.append(line)
+
+        if len(playlist) == 0:
+            raise Exception("playlist.m3u içinde video bulunamadı")
+
+        # Sonsuz döngü - playlist'i tekrarla
+        while True:
+            for video in playlist:
+                print(f"▶ Yayınlanıyor: {video}")
+
+                command = [
+                    'ffmpeg',
+                    '-re',
+                    '-i', video,
+                    '-i', 'logo.png',
+                    '-filter_complex',
+                    '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
+                    'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
+                    '[1:v]scale=200:-1[logo];'
+                    '[v0][logo]overlay=W-w-9:3,'
+                    "drawtext=text='':"
+                    "fontcolor=white:"
+                    "fontsize=24:"
+                    "box=1:"
+                    "boxcolor=black@0.6:"
+                    "boxborderw=5:"
+                    "x=(w-text_w)/2:"
+                    "y=h-text_h-20[v]",
+                    '-map', '[v]',
+                    '-map', '0:a?',
+                    '-c:v', 'libx264',
+                    '-preset', 'veryfast',
+                    '-pix_fmt', 'yuv420p',
+                    '-b:v', '4000k',
+                    '-maxrate', '4000k',
+                    '-bufsize', '8000k',
+                    '-g', '50',
+                    '-c:a', 'aac',
+                    '-b:a', '128k',
+                    '-ar', '44100',
+                    '-f', 'flv',
+                    rtmp_server
+                ]
+
+                process = subprocess.Popen(command)
+                process.wait()
+
+                print("⏭ Video bitti, sıradaki videoya geçiliyor...\n")
+
+        EOF
+
+        echo "✅ Python scripti oluşturuldu"
+
+    - name: 📄 Playlist kontrolü
+      run: |
+        if [ ! -f playlist.m3u ]; then
+          echo "❌ playlist.m3u bulunamadı!"
+          exit 1
+        fi
+
+        echo "✅ playlist.m3u bulundu"
+        echo "📋 İçeriği:"
+        cat playlist.m3u
+
+    - name: 🚀 Yayını başlat
+      run: |
+        echo "========================================"
+        echo "🎬 SSH101.com Yayını Başlatılıyor"
+        echo "========================================"
+        python yayin.py

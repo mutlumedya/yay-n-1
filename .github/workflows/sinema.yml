@@ -8,7 +8,7 @@ on:
 jobs:
   yayin:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 400  # 6 saat 40 dakika (360 dakika + yedek)
 
     steps:
     - name: 📥 Depoyu klonla
@@ -29,6 +29,7 @@ jobs:
         cat > yayin.py << 'EOF'
         import subprocess
         import time
+        import sys
 
         # ===================== SSH101.com AYARLARI =====================
         RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
@@ -38,6 +39,7 @@ jobs:
         # ===================== YAYIN AYARLARI =====================
         PLAYLIST_FILE = "playlist.m3u"
         LOGO_URL = "https://raw.githubusercontent.com/mutlumedya/yayin/refs/heads/main/erotik.png"
+        MAX_RUN_TIME = 6 * 60 * 60  # 6 saat (saniye cinsinden)
 
         print("=" * 50)
         print("📺 SSH101.com Yayın Başlatılıyor")
@@ -45,6 +47,7 @@ jobs:
         print(f"🎨 Logo: {LOGO_URL}")
         print(f"🔑 Stream Key: {STREAM_KEY}")
         print(f"📡 RTMP: {rtmp_server}")
+        print(f"⏱ Maksimum çalışma süresi: 6 saat")
         print("=" * 50)
 
         # Logo'yu indir
@@ -66,49 +69,64 @@ jobs:
         if len(playlist) == 0:
             raise Exception("playlist.m3u içinde video bulunamadı")
 
-        # Sonsuz döngü - playlist'i tekrarla
+        # Sonsuz döngü - yayını devam ettir
         while True:
-            for video in playlist:
-                print(f"▶ Yayınlanıyor: {video}")
+            start_time = time.time()
+            
+            # 6 saat boyunca yayın yap
+            while time.time() - start_time < MAX_RUN_TIME:
+                for video in playlist:
+                    # 6 saat doldu mu kontrol et
+                    if time.time() - start_time >= MAX_RUN_TIME:
+                        break
+                        
+                    print(f"▶ Yayınlanıyor: {video}")
+                    print(f"⏱ Kalan süre: {int((MAX_RUN_TIME - (time.time() - start_time)) / 60)} dakika")
 
-                command = [
-                    'ffmpeg',
-                    '-re',
-                    '-i', video,
-                    '-i', 'logo.png',
-                    '-filter_complex',
-                    '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
-                    'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
-                    '[1:v]scale=200:-1[logo];'
-                    '[v0][logo]overlay=W-w-9:3,'
-                    "drawtext=text='':"
-                    "fontcolor=white:"
-                    "fontsize=24:"
-                    "box=1:"
-                    "boxcolor=black@0.6:"
-                    "boxborderw=5:"
-                    "x=(w-text_w)/2:"
-                    "y=h-text_h-20[v]",
-                    '-map', '[v]',
-                    '-map', '0:a?',
-                    '-c:v', 'libx264',
-                    '-preset', 'veryfast',
-                    '-pix_fmt', 'yuv420p',
-                    '-b:v', '4000k',
-                    '-maxrate', '4000k',
-                    '-bufsize', '8000k',
-                    '-g', '50',
-                    '-c:a', 'aac',
-                    '-b:a', '128k',
-                    '-ar', '44100',
-                    '-f', 'flv',
-                    rtmp_server
-                ]
+                    command = [
+                        'ffmpeg',
+                        '-re',
+                        '-i', video,
+                        '-i', 'logo.png',
+                        '-filter_complex',
+                        '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,'
+                        'pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
+                        '[1:v]scale=200:-1[logo];'
+                        '[v0][logo]overlay=W-w-9:3,'
+                        "drawtext=text='':"
+                        "fontcolor=white:"
+                        "fontsize=24:"
+                        "box=1:"
+                        "boxcolor=black@0.6:"
+                        "boxborderw=5:"
+                        "x=(w-text_w)/2:"
+                        "y=h-text_h-20[v]",
+                        '-map', '[v]',
+                        '-map', '0:a?',
+                        '-c:v', 'libx264',
+                        '-preset', 'veryfast',
+                        '-pix_fmt', 'yuv420p',
+                        '-b:v', '4000k',
+                        '-maxrate', '4000k',
+                        '-bufsize', '8000k',
+                        '-g', '50',
+                        '-c:a', 'aac',
+                        '-b:a', '128k',
+                        '-ar', '44100',
+                        '-f', 'flv',
+                        rtmp_server
+                    ]
 
-                process = subprocess.Popen(command)
-                process.wait()
+                    process = subprocess.Popen(command)
+                    process.wait()
 
-                print("⏭ Video bitti, sıradaki videoya geçiliyor...\n")
+                    print("⏭ Video bitti, sıradaki videoya geçiliyor...\n")
+            
+            # 6 saat doldu - yeniden başlat
+            print("=" * 50)
+            print("⏰ 6 saat doldu! Yayın yeniden başlatılıyor...")
+            print("=" * 50)
+            time.sleep(5)  # 5 saniye bekle ve tekrar başlat
 
         EOF
 

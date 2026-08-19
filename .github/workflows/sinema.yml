@@ -38,7 +38,7 @@ jobs:
 
         # ===================== YAYIN AYARLARI =====================
         PLAYLIST_FILE = "playlist.m3u"
-        LOGO_URL = "https://raw.githubusercontent.com/mutlumedya/yayin/refs/heads/main/erotik.png"
+        LOGO_URL = "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo.png"
         MAX_RUN_TIME = 6 * 60 * 60  # 6 saat (saniye cinsinden)
 
         print("=" * 50)

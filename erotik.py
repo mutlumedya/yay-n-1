@@ -28,7 +28,7 @@ rtmp_server = f"{RTMP_URL}/{STREAM_KEY}"
 
 # ===================== M3U KAYNAĞI =====================
 M3U_SOURCE = "https://raw.githubusercontent.com/Sonuiptvnew/Sonuiptvnew/5d4cca3c9e8258373feeaf556b1a9e58bc4cf32e/xxx%20(1).m3u"  # Veya başka bir M3U linki
-LOGO_URL = "https://raw.githubusercontent.com/mutlumedya/yayin/refs/heads/main/erotik.png"
+LOGO_URL = "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo.png"
 
 # ===================== SİSTEM KONTROLÜ =====================
 def is_termux():

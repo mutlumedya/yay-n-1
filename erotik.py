@@ -7,9 +7,7 @@ import time
 import threading
 import os
 import requests
-import logging
 from pathlib import Path
-from datetime import datetime
 
 # ===================== RENKLİ ÇIKTI =====================
 class Colors:
@@ -17,76 +15,42 @@ class Colors:
     GREEN = '\033[0;32m'
     YELLOW = '\033[1;33m'
     BLUE = '\033[0;34m'
-    NC = '\033[0m'
+    NC = '\033[0m'  # No Color
 
 def print_colored(color, text):
     print(f"{color}{text}{Colors.NC}")
 
-# ===================== LOG AYARLARI =====================
-def setup_logging():
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
-    
-    log_file = log_dir / f"stream_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-    
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
-    return logging.getLogger(__name__)
-
-logger = setup_logging()
-
 # ===================== SSH101.com AYARLARI =====================
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 
-# ===================== YAYIN KONFIGÜRASYONLARI =====================
-STREAMS = [
-    {
-        "name": "ZEM TV",
-        "stream_url": "https://zemtv.mutlumedya.workers.dev/playlist.m3u8",
-        "logo_url": "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo.png",
-        "logo_file": "logo_zemtv.png",
-        "stream_key": "zemtv",
-        "rtmp_server": f"{RTMP_URL}/zemtv",
-        "max_retries": 10,
-        "retry_delay": 5,
-        "text_overlay": "t.me/zemmedya"  # Altta gösterilecek metin
-    },
-    {
-        "name": "SAD SPOR",
-        "stream_url": "https://sadspor.mutlumedya.workers.dev/playlist.m3u8",
-        "logo_url": "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo1.png",
-        "logo_file": "logo_sadspor.png",
-        "stream_key": "sadspor",
-        "rtmp_server": f"{RTMP_URL}/sadspor",
-        "max_retries": 10,
-        "retry_delay": 5,
-        "text_overlay": "t.me/zemmedya"
-    },
-    {
-        "name": "GİZLİ BELGESEL",
-        "stream_url": "https://gizlibelgesel.mutlumedya.workers.dev/playlist.m3u8",
-        "logo_url": "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo2.png",
-        "logo_file": "logo_gizlibelgesel.png",
-        "stream_key": "gizlibelgesel",
-        "rtmp_server": f"{RTMP_URL}/gizlibelgesel",
-        "max_retries": 10,
-        "retry_delay": 5,
-        "text_overlay": "t.me/zemmedya"
-    }
-]
+# ===================== 3 YAYIN =====================
+# Yayın 1 - ZEM TV
+STREAM_URL1 = "https://zemtv.mutlumedya.workers.dev/playlist.m3u8"
+LOGO_URL1 = "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo.png"
+LOGO_FILE1 = "logo_zemtv.png"
+STREAM_KEY1 = "zemtv"
+RTMP_SERVER1 = f"{RTMP_URL}/{STREAM_KEY1}"
+TEXT1 = "t.me/zemmedya"
+
+# Yayın 2 - SAD SPOR
+STREAM_URL2 = "https://sadspor.mutlumedya.workers.dev/playlist.m3u8"
+LOGO_URL2 = "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo1.png"
+LOGO_FILE2 = "logo_sadspor.png"
+STREAM_KEY2 = "sadspor"
+RTMP_SERVER2 = f"{RTMP_URL}/{STREAM_KEY2}"
+TEXT2 = "t.me/zemmedya"
+
+# Yayın 3 - GİZLİ BELGESEL
+STREAM_URL3 = "https://gizlibelgesel.mutlumedya.workers.dev/playlist.m3u8"
+LOGO_URL3 = "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo2.png"
+LOGO_FILE3 = "logo_gizlibelgesel.png"
+STREAM_KEY3 = "gizlibelgesel"
+RTMP_SERVER3 = f"{RTMP_URL}/{STREAM_KEY3}"
+TEXT3 = "t.me/zemmedya"
 
 # ===================== SİSTEM KONTROLÜ =====================
 def is_termux():
     return 'TERMUX_VERSION' in os.environ or '/data/data/com.termux' in os.environ
-
-def is_github_actions():
-    return 'GITHUB_ACTIONS' in os.environ
 
 def check_dependencies():
     print_colored(Colors.YELLOW, "[1/4] Bağımlılıklar kontrol ediliyor...")
@@ -104,105 +68,70 @@ def check_dependencies():
     except:
         print_colored(Colors.RED, "❌ FFmpeg bulunamadı!")
         if is_termux():
-            print_colored(Colors.YELLOW, "📦 FFmpeg yükleniyor... (pkg install ffmpeg)")
+            print_colored(Colors.YELLOW, "📦 FFmpeg yükleniyor...")
             subprocess.run(["pkg", "install", "-y", "ffmpeg"], check=True)
         else:
-            print_colored(Colors.RED, "⚠️ Lütfen FFmpeg'i manuel olarak yükleyin")
+            print_colored(Colors.RED, "⚠️ FFmpeg kur amk")
             return False
     return True
 
-# ===================== STREAM KAYNAĞINI KONTROL ET =====================
-def check_stream_source(stream_url, stream_name):
-    print_colored(Colors.YELLOW, f"[{stream_name}] Stream kaynağı kontrol ediliyor...")
+# ===================== STREAM KONTROL =====================
+def check_stream_source(stream_url, name):
+    print_colored(Colors.YELLOW, f"[{name}] Stream kontrol...")
     try:
         response = requests.get(stream_url, timeout=10)
         if response.status_code == 200:
-            print_colored(Colors.GREEN, f"[{stream_name}] ✅ Stream kaynağı aktif")
+            print_colored(Colors.GREEN, f"[{name}] ✅ Aktif")
             return True
         else:
-            print_colored(Colors.RED, f"[{stream_name}] ❌ Stream kaynağı hata verdi (HTTP {response.status_code})")
+            print_colored(Colors.RED, f"[{name}] ❌ HTTP {response.status_code}")
             return False
     except Exception as e:
-        print_colored(Colors.RED, f"[{stream_name}] ❌ Stream kaynağına erişilemedi: {e}")
+        print_colored(Colors.RED, f"[{name}] ❌ {e}")
         return False
 
-# ===================== LOGO'YU İNDİR =====================
-def download_logo(stream_config):
-    stream_name = stream_config['name']
-    print_colored(Colors.YELLOW, f"[{stream_name}] Logo indiriliyor...")
+# ===================== LOGO İNDİR =====================
+def download_logo(logo_url, logo_file, name):
+    print_colored(Colors.YELLOW, f"[{name}] Logo indiriliyor...")
     try:
-        logo_url = stream_config['logo_url']
-        logo_file = stream_config['logo_file']
-        
         if logo_url.startswith('http'):
             response = requests.get(logo_url, timeout=30)
             response.raise_for_status()
             with open(logo_file, 'wb') as f:
                 f.write(response.content)
-            print_colored(Colors.GREEN, f"[{stream_name}] ✅ Logo indirildi: {logo_file}")
-            return True
-        elif os.path.exists(logo_url):
-            print_colored(Colors.GREEN, f"[{stream_name}] ✅ Logo dosyası bulundu: {logo_url}")
+            print_colored(Colors.GREEN, f"[{name}] ✅ Logo indi")
             return True
         else:
-            print_colored(Colors.RED, f"[{stream_name}] ❌ Logo bulunamadı!")
+            print_colored(Colors.RED, f"[{name}] ❌ Logo yok")
             return False
     except Exception as e:
-        print_colored(Colors.RED, f"[{stream_name}] ❌ Logo indirme hatası: {e}")
-        logger.error(f"[{stream_name}] Logo indirme hatası: {e}")
+        print_colored(Colors.RED, f"[{name}] ❌ Logo hatası: {e}")
         return False
 
-# ===================== YAYIN BAŞLAT (TEK YAYIN) =====================
-def start_stream(stream_config, stop_event, stream_status):
-    stream_name = stream_config['name']
-    stream_url = stream_config['stream_url']
-    rtmp_server = stream_config['rtmp_server']
-    logo_file = stream_config['logo_file']
-    stream_key = stream_config['stream_key']
-    text_overlay = stream_config.get('text_overlay', 't.me/zemmedya')
-    max_retries = stream_config.get('max_retries', 10)
-    retry_delay = stream_config.get('retry_delay', 5)
+# ===================== YAYIN BAŞLAT =====================
+def start_stream(stream_url, logo_file, rtmp_server, stream_key, text, name):
+    print_colored(Colors.YELLOW, f"[{name}] Yayın hazırlanıyor...")
     
-    stream_status[stream_name] = {
-        'running': False,
-        'error': None,
-        'retry_count': 0
-    }
-    
-    print_colored(Colors.YELLOW, f"[{stream_name}] Yayın hazırlanıyor...")
-    
-    if not check_stream_source(stream_url, stream_name):
-        print_colored(Colors.RED, f"[{stream_name}] ❌ Stream kaynağı çalışmıyor!")
-        stream_status[stream_name]['error'] = "Stream kaynağı çalışmıyor"
-        return False
+    if not check_stream_source(stream_url, name):
+        print_colored(Colors.RED, f"[{name}] ❌ Stream ölü!")
+        return
     
     print_colored(Colors.BLUE, "=" * 50)
-    print_colored(Colors.GREEN, f"  {stream_name} Yayını Başlatılıyor")
+    print_colored(Colors.GREEN, f"  {name} Yayını Başlıyor")
     print_colored(Colors.BLUE, "=" * 50)
-    print_colored(Colors.BLUE, f"[{stream_name}] 📡 RTMP: {rtmp_server}")
-    print_colored(Colors.BLUE, f"[{stream_name}] 📺 Stream: {stream_url}")
-    print_colored(Colors.BLUE, f"[{stream_name}] 🌐 İzleme: https://ssh101.com/live/{stream_key}")
-    print_colored(Colors.BLUE, f"[{stream_name}] 📱 HLS: https://lbgo.bozztv.com/ssh101/ssh101/{stream_key}/playlist.m3u8")
-    print_colored(Colors.BLUE, f"[{stream_name}] 📝 Metin: {text_overlay}")
+    print_colored(Colors.BLUE, f"[{name}] 📡 RTMP: {rtmp_server}")
+    print_colored(Colors.BLUE, f"[{name}] 📺 İzle: https://ssh101.com/live/{stream_key}")
     print_colored(Colors.BLUE, "=" * 50)
     
     process = None
     retry_count = 0
     
-    while not stop_event.is_set():
+    while True:
         try:
-            if retry_count >= max_retries:
-                print_colored(Colors.RED, f"[{stream_name}] ❌ Maksimum yeniden deneme sayısına ulaşıldı ({max_retries})")
-                stream_status[stream_name]['error'] = f"Maksimum yeniden deneme ({max_retries})"
-                break
-            
-            print_colored(Colors.GREEN, f"[{stream_name}] ▶ Yayınlanıyor: {stream_url}")
-            logger.info(f"[{stream_name}] Yayınlanıyor: {stream_url}")
+            print_colored(Colors.GREEN, f"[{name}] ▶ Yayınlanıyor...")
             
             logo_input = ['-i', logo_file] if os.path.exists(logo_file) else []
             
-            # FFmpeg komutu - Logo kalıcı, alt metin t.me/zemmedya
-            # buffer_size ve max_delay ile donmaları azalt
             command = [
                 'ffmpeg',
                 '-re',
@@ -210,199 +139,108 @@ def start_stream(stream_config, stop_event, stream_status):
                 '-fflags', 'nobuffer',
                 '-flags', 'low_delay',
                 '-max_delay', '0',
-                '-analyzeduration', '1000000',
-                '-probesize', '1000000',
             ] + logo_input + [
                 '-filter_complex',
                 '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black,setpts=PTS-STARTPTS[v0];'
-                + ('' if not os.path.exists(logo_file) else '[1:v]scale=150:-1,format=rgba,colorchannelmixer=aa=1.0[logo];[v0][logo]overlay=W-w-15:15:format=auto,format=yuv420p[v1];' )
-                + f'[v1]drawtext=text=\'{text_overlay}\':fontcolor=white:fontsize=28:box=1:boxcolor=black@0.7:boxborderw=8:'
-                + 'x=(w-text_w)/2:y=h-text_h-15:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf[v]',
+                + ('' if not os.path.exists(logo_file) else f'[1:v]scale=150:-1[logo];[v0][logo]overlay=W-w-15:15[v1];')
+                + f'[v1]drawtext=text=\'{text}\':fontcolor=white:fontsize=28:box=1:boxcolor=black@0.7:boxborderw=8:x=(w-text_w)/2:y=h-text_h-15[v]',
                 '-map', '[v]',
                 '-map', '0:a?',
                 '-c:v', 'libx264',
-                '-preset', 'medium',  # veryfast yerine medium - daha kaliteli
-                '-tune', 'zerolatency',  # Düşük gecikme
+                '-preset', 'medium',
+                '-tune', 'zerolatency',
                 '-pix_fmt', 'yuv420p',
-                '-b:v', '3000k',  # Biraz düşürüldü
+                '-b:v', '3000k',
                 '-maxrate', '3000k',
                 '-bufsize', '6000k',
-                '-g', '120',  # GOP artırıldı
+                '-g', '120',
                 '-c:a', 'aac',
-                '-b:a', '96k',  # Ses bitrate düşürüldü
+                '-b:a', '96k',
                 '-ar', '44100',
                 '-f', 'flv',
-                '-flvflags', 'no_duration_filesize',
                 rtmp_server
             ]
             
-            process = subprocess.Popen(
-                command, 
-                stderr=subprocess.PIPE, 
-                stdout=subprocess.PIPE,
-                text=True
-            )
+            process = subprocess.Popen(command, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
             
-            stream_status[stream_name]['running'] = True
-            stream_status[stream_name]['error'] = None
-            retry_count = 0
-            
-            # Yayın devam ederken bekle
-            while not stop_event.is_set():
+            while True:
+                time.sleep(5)
                 if process.poll() is not None:
                     stdout, stderr = process.communicate()
                     if process.returncode != 0:
-                        print_colored(Colors.RED, f"[{stream_name}] ❌ FFmpeg hatası (kod: {process.returncode})")
-                        if stderr:
-                            print_colored(Colors.RED, f"[{stream_name}] Hata: {stderr[:300]}")
-                        raise Exception(f"FFmpeg çıkış kodu: {process.returncode}")
-                    
-                    print_colored(Colors.YELLOW, f"[{stream_name}] ⏭ Stream yeniden başlatılıyor...")
+                        print_colored(Colors.RED, f"[{name}] ❌ FFmpeg hatası")
+                        raise Exception("FFmpeg çöktü")
                     break
-                time.sleep(3)  # Daha sık kontrol
             
-            if stop_event.is_set():
-                if process:
-                    process.terminate()
-                    process.wait()
-                break
-            
-            print_colored(Colors.BLUE, f"[{stream_name}] ⏳ Stream yeniden başlatılıyor...")
+            print_colored(Colors.YELLOW, f"[{name}] ⏭ Yeniden başlatılıyor...")
             time.sleep(2)
             
         except KeyboardInterrupt:
-            print_colored(Colors.RED, f"\n[{stream_name}] ⛔ Yayın durduruluyor...")
+            print_colored(Colors.RED, f"\n[{name}] ⛔ Durduruluyor...")
             if process:
                 process.terminate()
                 process.wait()
-            print_colored(Colors.GREEN, f"[{stream_name}] ✅ Yayın sonlandırıldı.")
-            stream_status[stream_name]['running'] = False
             break
         except Exception as e:
             retry_count += 1
-            print_colored(Colors.RED, f"[{stream_name}] ❌ Yayın hatası (Deneme {retry_count}/{max_retries}): {e}")
-            logger.error(f"[{stream_name}] Yayın hatası: {e}")
-            
-            stream_status[stream_name]['error'] = str(e)
-            stream_status[stream_name]['running'] = False
-            
+            print_colored(Colors.RED, f"[{name}] ❌ Hata: {e}")
             if process:
                 try:
                     process.terminate()
                     process.wait(timeout=5)
                 except:
                     process.kill()
-            
-            print_colored(Colors.YELLOW, f"[{stream_name}] ⏳ {retry_delay} saniye sonra yeniden deneniyor...")
-            time.sleep(retry_delay)
-    
-    stream_status[stream_name]['running'] = False
-    logger.info(f"[{stream_name}] Yayın sonlandı")
-
-# ===================== TÜM YAYINLARI BAŞLAT =====================
-def start_all_streams():
-    print_colored(Colors.BLUE, "=" * 50)
-    print_colored(Colors.GREEN, "  SSH101.com - 3'lü Yayın Sistemi (M3U8)")
-    print_colored(Colors.BLUE, "=" * 50)
-    
-    if is_termux():
-        print_colored(Colors.BLUE, "📱 Termux ortamı tespit edildi")
-    elif is_github_actions():
-        print_colored(Colors.BLUE, "☁️ GitHub Actions ortamı tespit edildi")
-    else:
-        print_colored(Colors.BLUE, "💻 Normal ortam tespit edildi")
-    
-    if not check_dependencies():
-        print_colored(Colors.RED, "❌ Bağımlılıklar eksik, çıkılıyor...")
-        return
-    
-    streams_data = []
-    failed_streams = []
-    
-    for stream_config in STREAMS:
-        print_colored(Colors.BLUE, f"\n{'='*30}")
-        print_colored(Colors.BLUE, f"[{stream_config['name']}] Hazırlanıyor...")
-        print_colored(Colors.BLUE, f"{'='*30}")
-        
-        if not download_logo(stream_config):
-            print_colored(Colors.YELLOW, f"[{stream_config['name']}] ⚠️ Logo indirilemedi, yayın logosuz devam edecek.")
-        
-        if not check_stream_source(stream_config['stream_url'], stream_config['name']):
-            print_colored(Colors.RED, f"[{stream_config['name']}] ❌ Stream kaynağı çalışmıyor! Bu yayın atlanıyor.")
-            failed_streams.append(stream_config['name'])
-            continue
-        
-        streams_data.append(stream_config)
-    
-    if len(streams_data) == 0:
-        print_colored(Colors.RED, "❌ Hiçbir yayın başlatılamadı! Tüm kaynaklar hatalı.")
-        return
-    
-    print_colored(Colors.GREEN, f"\n✅ {len(streams_data)} yayın hazır, başlatılıyor...")
-    if failed_streams:
-        print_colored(Colors.YELLOW, f"⚠️ {len(failed_streams)} yayın atlandı: {', '.join(failed_streams)}")
-    
-    print_colored(Colors.BLUE, "\n" + "=" * 50)
-    print_colored(Colors.GREEN, f"✨ {len(streams_data)} yayın başlıyor! (Durdurmak için: Ctrl+C)")
-    print_colored(Colors.BLUE, "=" * 50 + "\n")
-    
-    stop_event = threading.Event()
-    threads = []
-    stream_status = {}
-    
-    for stream_config in streams_data:
-        stream_name = stream_config['name']
-        thread = threading.Thread(
-            target=start_stream,
-            args=(stream_config, stop_event, stream_status),
-            name=f"Thread-{stream_name}"
-        )
-        thread.daemon = True
-        thread.start()
-        threads.append(thread)
-        print_colored(Colors.BLUE, f"🔄 {stream_name} başlatıldı (Thread: {thread.name})")
-        time.sleep(3)
-    
-    try:
-        while True:
-            time.sleep(60)
-            print_colored(Colors.BLUE, "\n📊 Yayın Durum Raporu:")
-            for stream_name, status in stream_status.items():
-                status_text = "🟢 Çalışıyor" if status.get('running') else "🔴 DURDU"
-                error_text = f" (Hata: {status.get('error')})" if status.get('error') else ""
-                print_colored(Colors.BLUE, f"  {stream_name}: {status_text}{error_text}")
-            
-            active_threads = [t for t in threads if t.is_alive()]
-            if len(active_threads) == 0:
-                print_colored(Colors.RED, "\n❌ Tüm yayınlar durdu!")
-                break
-            
-    except KeyboardInterrupt:
-        print_colored(Colors.RED, "\n⛔ Tüm yayınlar durduruluyor...")
-        stop_event.set()
-        
-        for thread in threads:
-            thread.join(timeout=5)
-        
-        print_colored(Colors.GREEN, "✅ Tüm yayınlar sonlandırıldı.")
-    
-    print_colored(Colors.BLUE, "\n" + "=" * 50)
-    print_colored(Colors.BLUE, "📊 FİNAL DURUM RAPORU")
-    print_colored(Colors.BLUE, "=" * 50)
-    for stream_name, status in stream_status.items():
-        status_text = "✅ Çalıştı" if status.get('running') else "❌ DURDU"
-        error_text = f" (Hata: {status.get('error')})" if status.get('error') else ""
-        print_colored(Colors.BLUE, f"  {stream_name}: {status_text}{error_text}")
-    print_colored(Colors.BLUE, "=" * 50)
+            time.sleep(5)
 
 # ===================== ANA FONKSİYON =====================
 def main():
+    print_colored(Colors.BLUE, "=" * 50)
+    print_colored(Colors.GREEN, "  SSH101.com - 3'lü Yayın")
+    print_colored(Colors.BLUE, "=" * 50)
+    
+    if is_termux():
+        print_colored(Colors.BLUE, "📱 Termux")
+    else:
+        print_colored(Colors.BLUE, "💻 Normal ortam")
+    
+    if not check_dependencies():
+        return
+    
+    # Logo'ları indir
+    download_logo(LOGO_URL1, LOGO_FILE1, "ZEM TV")
+    download_logo(LOGO_URL2, LOGO_FILE2, "SAD SPOR")
+    download_logo(LOGO_URL3, LOGO_FILE3, "GİZLİ BELGESEL")
+    
+    print_colored(Colors.BLUE, "\n" + "=" * 50)
+    print_colored(Colors.GREEN, "✨ 3 Yayın Başlıyor!")
+    print_colored(Colors.BLUE, "=" * 50)
+    
+    # Thread'leri başlat
+    threads = []
+    
+    t1 = threading.Thread(target=start_stream, args=(STREAM_URL1, LOGO_FILE1, RTMP_SERVER1, STREAM_KEY1, TEXT1, "ZEM TV"))
+    t1.daemon = True
+    t1.start()
+    threads.append(t1)
+    time.sleep(2)
+    
+    t2 = threading.Thread(target=start_stream, args=(STREAM_URL2, LOGO_FILE2, RTMP_SERVER2, STREAM_KEY2, TEXT2, "SAD SPOR"))
+    t2.daemon = True
+    t2.start()
+    threads.append(t2)
+    time.sleep(2)
+    
+    t3 = threading.Thread(target=start_stream, args=(STREAM_URL3, LOGO_FILE3, RTMP_SERVER3, STREAM_KEY3, TEXT3, "GİZLİ BELGESEL"))
+    t3.daemon = True
+    t3.start()
+    threads.append(t3)
+    
     try:
-        start_all_streams()
-    except Exception as e:
-        print_colored(Colors.RED, f"❌ Beklenmeyen hata: {e}")
-        logger.error(f"Beklenmeyen hata: {e}")
-        sys.exit(1)
+        for t in threads:
+            t.join()
+    except KeyboardInterrupt:
+        print_colored(Colors.RED, "\n⛔ Tüm yayınlar durduruluyor...")
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()

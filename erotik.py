@@ -45,37 +45,39 @@ logger = setup_logging()
 RTMP_URL = "rtmp://ssh101.bozztv.com:1935/ssh101"
 
 # ===================== YAYIN KONFIGÜRASYONLARI =====================
-# Direkt M3U8 stream linkleri - M3U dosyası değil, doğrudan yayın linki
 STREAMS = [
     {
         "name": "ZEM TV",
-        "stream_url": "https://zemtv.mutlumedya.workers.dev/playlist.m3u8",  # Direkt M3U8 linki
+        "stream_url": "https://zemtv.mutlumedya.workers.dev/playlist.m3u8",
         "logo_url": "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo.png",
         "logo_file": "logo_zemtv.png",
         "stream_key": "zemtv",
         "rtmp_server": f"{RTMP_URL}/zemtv",
-        "max_retries": 5,
-        "retry_delay": 10
+        "max_retries": 10,
+        "retry_delay": 5,
+        "text_overlay": "t.me/zemmedya"  # Altta gösterilecek metin
     },
     {
         "name": "SAD SPOR",
-        "stream_url": "https://sadspor.mutlumedya.workers.dev/playlist.m3u8",  # Direkt M3U8 linki
+        "stream_url": "https://sadspor.mutlumedya.workers.dev/playlist.m3u8",
         "logo_url": "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo1.png",
         "logo_file": "logo_sadspor.png",
         "stream_key": "sadspor",
         "rtmp_server": f"{RTMP_URL}/sadspor",
-        "max_retries": 5,
-        "retry_delay": 10
+        "max_retries": 10,
+        "retry_delay": 5,
+        "text_overlay": "t.me/zemmedya"
     },
     {
         "name": "GİZLİ BELGESEL",
-        "stream_url": "https://gizlibelgesel.mutlumedya.workers.dev/playlist.m3u8",  # Direkt M3U8 linki
+        "stream_url": "https://gizlibelgesel.mutlumedya.workers.dev/playlist.m3u8",
         "logo_url": "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo2.png",
         "logo_file": "logo_gizlibelgesel.png",
         "stream_key": "gizlibelgesel",
         "rtmp_server": f"{RTMP_URL}/gizlibelgesel",
-        "max_retries": 5,
-        "retry_delay": 10
+        "max_retries": 10,
+        "retry_delay": 5,
+        "text_overlay": "t.me/zemmedya"
     }
 ]
 
@@ -111,7 +113,6 @@ def check_dependencies():
 
 # ===================== STREAM KAYNAĞINI KONTROL ET =====================
 def check_stream_source(stream_url, stream_name):
-    """M3U8 stream kaynağının çalışıp çalışmadığını kontrol et"""
     print_colored(Colors.YELLOW, f"[{stream_name}] Stream kaynağı kontrol ediliyor...")
     try:
         response = requests.get(stream_url, timeout=10)
@@ -153,14 +154,14 @@ def download_logo(stream_config):
 
 # ===================== YAYIN BAŞLAT (TEK YAYIN) =====================
 def start_stream(stream_config, stop_event, stream_status):
-    """Tek bir yayını başlat - Direkt M3U8 stream kullanır"""
     stream_name = stream_config['name']
-    stream_url = stream_config['stream_url']  # Direkt M3U8 linki
+    stream_url = stream_config['stream_url']
     rtmp_server = stream_config['rtmp_server']
     logo_file = stream_config['logo_file']
     stream_key = stream_config['stream_key']
-    max_retries = stream_config.get('max_retries', 5)
-    retry_delay = stream_config.get('retry_delay', 10)
+    text_overlay = stream_config.get('text_overlay', 't.me/zemmedya')
+    max_retries = stream_config.get('max_retries', 10)
+    retry_delay = stream_config.get('retry_delay', 5)
     
     stream_status[stream_name] = {
         'running': False,
@@ -170,7 +171,6 @@ def start_stream(stream_config, stop_event, stream_status):
     
     print_colored(Colors.YELLOW, f"[{stream_name}] Yayın hazırlanıyor...")
     
-    # Stream kaynağını kontrol et
     if not check_stream_source(stream_url, stream_name):
         print_colored(Colors.RED, f"[{stream_name}] ❌ Stream kaynağı çalışmıyor!")
         stream_status[stream_name]['error'] = "Stream kaynağı çalışmıyor"
@@ -183,6 +183,7 @@ def start_stream(stream_config, stop_event, stream_status):
     print_colored(Colors.BLUE, f"[{stream_name}] 📺 Stream: {stream_url}")
     print_colored(Colors.BLUE, f"[{stream_name}] 🌐 İzleme: https://ssh101.com/live/{stream_key}")
     print_colored(Colors.BLUE, f"[{stream_name}] 📱 HLS: https://lbgo.bozztv.com/ssh101/ssh101/{stream_key}/playlist.m3u8")
+    print_colored(Colors.BLUE, f"[{stream_name}] 📝 Metin: {text_overlay}")
     print_colored(Colors.BLUE, "=" * 50)
     
     process = None
@@ -198,36 +199,43 @@ def start_stream(stream_config, stop_event, stream_status):
             print_colored(Colors.GREEN, f"[{stream_name}] ▶ Yayınlanıyor: {stream_url}")
             logger.info(f"[{stream_name}] Yayınlanıyor: {stream_url}")
             
-            # Logo var mı kontrol et
             logo_input = ['-i', logo_file] if os.path.exists(logo_file) else []
             
-            # FFmpeg komutu oluştur - Direkt M3U8 stream'i al ve RTMP'ye yayınla
+            # FFmpeg komutu - Logo kalıcı, alt metin t.me/zemmedya
+            # buffer_size ve max_delay ile donmaları azalt
             command = [
                 'ffmpeg',
                 '-re',
-                '-i', stream_url,  # Direkt M3U8 linki
+                '-i', stream_url,
+                '-fflags', 'nobuffer',
+                '-flags', 'low_delay',
+                '-max_delay', '0',
+                '-analyzeduration', '1000000',
+                '-probesize', '1000000',
             ] + logo_input + [
                 '-filter_complex',
-                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black[v0];'
-                + ('' if not os.path.exists(logo_file) else f'[1:v]scale=200:-1[logo];[v0][logo]overlay=W-w-5:3')
-                + f',drawtext=text=\'{stream_name}\':fontcolor=white:fontsize=24:box=1:boxcolor=black@0.6:boxborderw=5:x=(w-text_w)/2:y=h-text_h-20[v]',
+                '[0:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black,setpts=PTS-STARTPTS[v0];'
+                + ('' if not os.path.exists(logo_file) else '[1:v]scale=150:-1,format=rgba,colorchannelmixer=aa=1.0[logo];[v0][logo]overlay=W-w-15:15:format=auto,format=yuv420p[v1];' )
+                + f'[v1]drawtext=text=\'{text_overlay}\':fontcolor=white:fontsize=28:box=1:boxcolor=black@0.7:boxborderw=8:'
+                + 'x=(w-text_w)/2:y=h-text_h-15:fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf[v]',
                 '-map', '[v]',
                 '-map', '0:a?',
                 '-c:v', 'libx264',
-                '-preset', 'veryfast',
+                '-preset', 'medium',  # veryfast yerine medium - daha kaliteli
+                '-tune', 'zerolatency',  # Düşük gecikme
                 '-pix_fmt', 'yuv420p',
-                '-b:v', '4000k',
-                '-maxrate', '4000k',
-                '-bufsize', '8000k',
-                '-g', '50',
+                '-b:v', '3000k',  # Biraz düşürüldü
+                '-maxrate', '3000k',
+                '-bufsize', '6000k',
+                '-g', '120',  # GOP artırıldı
                 '-c:a', 'aac',
-                '-b:a', '128k',
+                '-b:a', '96k',  # Ses bitrate düşürüldü
                 '-ar', '44100',
                 '-f', 'flv',
+                '-flvflags', 'no_duration_filesize',
                 rtmp_server
             ]
             
-            # Yayını başlat
             process = subprocess.Popen(
                 command, 
                 stderr=subprocess.PIPE, 
@@ -242,17 +250,16 @@ def start_stream(stream_config, stop_event, stream_status):
             # Yayın devam ederken bekle
             while not stop_event.is_set():
                 if process.poll() is not None:
-                    # FFmpeg çıktısını kontrol et
                     stdout, stderr = process.communicate()
                     if process.returncode != 0:
                         print_colored(Colors.RED, f"[{stream_name}] ❌ FFmpeg hatası (kod: {process.returncode})")
                         if stderr:
-                            print_colored(Colors.RED, f"[{stream_name}] Hata: {stderr[:200]}")
+                            print_colored(Colors.RED, f"[{stream_name}] Hata: {stderr[:300]}")
                         raise Exception(f"FFmpeg çıkış kodu: {process.returncode}")
                     
                     print_colored(Colors.YELLOW, f"[{stream_name}] ⏭ Stream yeniden başlatılıyor...")
                     break
-                time.sleep(5)
+                time.sleep(3)  # Daha sık kontrol
             
             if stop_event.is_set():
                 if process:
@@ -309,7 +316,6 @@ def start_all_streams():
         print_colored(Colors.RED, "❌ Bağımlılıklar eksik, çıkılıyor...")
         return
     
-    # Her yayın için logoyu indir ve stream'i kontrol et
     streams_data = []
     failed_streams = []
     
@@ -318,11 +324,9 @@ def start_all_streams():
         print_colored(Colors.BLUE, f"[{stream_config['name']}] Hazırlanıyor...")
         print_colored(Colors.BLUE, f"{'='*30}")
         
-        # Logo'yu indir
         if not download_logo(stream_config):
             print_colored(Colors.YELLOW, f"[{stream_config['name']}] ⚠️ Logo indirilemedi, yayın logosuz devam edecek.")
         
-        # Stream kaynağını kontrol et
         if not check_stream_source(stream_config['stream_url'], stream_config['name']):
             print_colored(Colors.RED, f"[{stream_config['name']}] ❌ Stream kaynağı çalışmıyor! Bu yayın atlanıyor.")
             failed_streams.append(stream_config['name'])
@@ -357,7 +361,7 @@ def start_all_streams():
         thread.start()
         threads.append(thread)
         print_colored(Colors.BLUE, f"🔄 {stream_name} başlatıldı (Thread: {thread.name})")
-        time.sleep(3)  # Her yayın arasında 3 saniye bekleyelim
+        time.sleep(3)
     
     try:
         while True:

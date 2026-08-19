@@ -34,7 +34,7 @@ TEXT1 = "t.me/zemmedya"
 
 # Yayın 2 - SAD SPOR
 STREAM_URL2 = "https://cdn.codenet.lol/streamgo/stremgo123/4866.m3u8"
-LOGO_URL2 = "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/logo1.png"
+LOGO_URL2 = "https://raw.githubusercontent.com/mutlumedya/yay-n-1/refs/heads/main/Photo.png"
 LOGO_FILE2 = "logo_sadspor.png"
 STREAM_KEY2 = "sadspor"
 RTMP_SERVER2 = f"{RTMP_URL}/{STREAM_KEY2}"
